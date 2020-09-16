@@ -7,15 +7,25 @@
 #include "detours.h"
 
 int IDarray[3] = { 100, 100, 100 };
+int PlayersDisplayed = 0;
 
-Player* hook(int user_id , int unknown)
+Player* hook(void* ClassPointer, int user_id)
 {
-	Player* player = reinterpret_cast<Player*>(GetPlayerById(user_id, unknown)); //Get the player
+	Player* player = reinterpret_cast<Player*>(GetPlayerById(ClassPointer, user_id)); //Get the player
 	if (player != NULL) //Check if player is not nil
 	{
 	    //There are maximum of 3 imposters
 		if (player->IsImposter() == 1) //Check if player is Imposter
 		{
+			//Display the amount of players game start with
+			if (PlayersDisplayed == 0)
+			{
+				int count = GetPlayerCount(ClassPointer);
+				std::cout << "Start Players: " << count << std::endl;
+				printf("\n");
+				PlayersDisplayed = 1;
+			}
+
 			DWORD name_array = player->GetNamePointer(); //Get his name pointer
 			wchar_t* name = reinterpret_cast<wchar_t*>(name_array + 0xC); //Add 0xC to the return
 			int id = player->GetID(); //Get his ID
@@ -40,13 +50,14 @@ Player* hook(int user_id , int unknown)
 	return player;
 }
 
-void gameExit(int unknown)
+void gameExit(int Instance)
 {
-	system("cls");
+	system("cls");;
 	for (int i = 0; i <= 2; i++) {
 		IDarray[i] = 100;
 	}
-	return LeaveGame(unknown);
+	PlayersDisplayed = 0;
+	return LeaveGame(Instance);
 }
 
 void GameEnding(int a1, int32_t reason, char a3)
@@ -55,6 +66,7 @@ void GameEnding(int a1, int32_t reason, char a3)
 	for (int i = 0; i <= 2; i++) {
 		IDarray[i] = 100;
 	}
+	PlayersDisplayed = 0;
 	return GameEnd(a1, reason, a3);
 }
 
@@ -67,7 +79,7 @@ void main()
 	SetConsoleTitleA("Among Us");
 
 	//Hook functions
-	GetPlayerById = (Player*(__cdecl*)(int, int))DetourFunction((PBYTE)(static_cast<DWORD>(Mod) + 0x224400), reinterpret_cast<PBYTE>(hook)); //Game calls this on every player once game start
+	GetPlayerById = (Player*(__cdecl*)(void*, int))DetourFunction((PBYTE)(static_cast<DWORD>(Mod) + 0x224400), reinterpret_cast<PBYTE>(hook)); //Game calls this on every player once game start
 	GameEnd = (void(__cdecl*)(int, int32_t, char))DetourFunction((PBYTE)(static_cast<DWORD>(Mod) + 0x29FDB0), reinterpret_cast<PBYTE>(GameEnding)); //Game calls this once round end
 	LeaveGame = (void(__cdecl*)(int))DetourFunction((PBYTE)(static_cast<DWORD>(Mod) + 0x21F1A0), reinterpret_cast<PBYTE>(gameExit)); //Game calls this if you manually leave
 }
